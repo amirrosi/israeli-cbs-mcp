@@ -1,0 +1,17 @@
+[project]
+name = "israeli-cbs-mcp"
+version = "0.1.0"
+description = "MCP Server for Israeli Central Bureau of Statistics (CBS) Data"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp",
+    "httpx",
+]
+
+[project.scripts]
+cbs-mcp-server = "cbs_mcp_server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
