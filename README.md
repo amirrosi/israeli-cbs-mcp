@@ -38,7 +38,7 @@ uvx israeli-cbs-mcp
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/israeli-cbs-mcp.git
+    git clone https://github.com/amirrosi/israeli-cbs-mcp.git
     cd israeli-cbs-mcp
     ```
 2.  Install dependencies:
