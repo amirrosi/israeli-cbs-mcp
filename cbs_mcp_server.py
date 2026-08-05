@@ -20,7 +20,8 @@ import logging
 from typing import Optional, Any, Dict, List, Union
 from datetime import datetime, timedelta
 from pathlib import Path
-from mcp.server import Server
+import mcp.types as types
+from mcp.server import Server, ServerRequestContext
 from mcp.types import Tool, TextContent
 import mcp.server.stdio
 
@@ -55,8 +56,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize MCP server
-app = Server("israeli-cbs-stats")
+# The MCP server is constructed in main(); as of mcp 2.0 the request handlers
+# are passed to the Server constructor rather than registered via decorators,
+# so they must be defined before the instance is created.
 
 # Global cache
 path_metadata: Dict[str, Dict[str, Any]] = {}  # Map path -> {name, full_name, type}
@@ -458,9 +460,8 @@ async def refresh_cache_loop():
             await asyncio.sleep(300)  # Retry after 5 minutes on error
 
 
-@app.list_tools()
-async def list_tools() -> list[Tool]:
-    """List all available tools."""
+def tool_definitions() -> list[Tool]:
+    """The tools this server exposes."""
     return [
         Tool(
             name="list_main_topics",
@@ -552,9 +553,16 @@ async def list_tools() -> list[Tool]:
     ]
 
 
-@app.call_tool()
-async def call_tool(name: str, arguments: Any) -> list[TextContent]:
-    """Handle tool calls."""
+async def list_tools(
+    ctx: ServerRequestContext,
+    params: types.PaginatedRequestParams | None,
+) -> types.ListToolsResult:
+    """Handle the tools/list request."""
+    return types.ListToolsResult(tools=tool_definitions())
+
+
+async def dispatch_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+    """Run a single tool and return its content blocks."""
     global path_metadata
     lang = arguments.get("lang", "he")
     
@@ -691,6 +699,15 @@ async def call_tool(name: str, arguments: Any) -> list[TextContent]:
         return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
 
+async def call_tool(
+    ctx: ServerRequestContext,
+    params: types.CallToolRequestParams,
+) -> types.CallToolResult:
+    """Handle the tools/call request."""
+    content = await dispatch_tool(params.name, params.arguments or {})
+    return types.CallToolResult(content=content)
+
+
 async def main():
     """Run the MCP server."""
     # Build/load index on startup
@@ -707,7 +724,14 @@ async def main():
     asyncio.create_task(refresh_cache_loop())
     
     logger.info("Server ready! (Index building in background)")
-    
+
+    app = Server(
+        "israeli-cbs-stats",
+        version="0.1.0",
+        on_list_tools=list_tools,
+        on_call_tool=call_tool,
+    )
+
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
         await app.run(
             read_stream,
@@ -716,5 +740,14 @@ async def main():
         )
 
 
-if __name__ == "__main__":
+def run():
+    """Console-script entry point (``cbs-mcp-server``).
+
+    ``main`` is a coroutine, so it must be driven by an event loop. Pointing the
+    entry point straight at it would merely build a coroutine object and exit.
+    """
     asyncio.run(main())
+
+
+if __name__ == "__main__":
+    run()
