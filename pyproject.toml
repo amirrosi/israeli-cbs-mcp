@@ -5,12 +5,12 @@ description = "MCP Server for Israeli Central Bureau of Statistics (CBS) Data"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "mcp",
+    "mcp>=2.0.0",
     "httpx",
 ]
 
 [project.scripts]
-cbs-mcp-server = "cbs_mcp_server:main"
+cbs-mcp-server = "cbs_mcp_server:run"
 
 [build-system]
 requires = ["hatchling"]
